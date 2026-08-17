@@ -6,7 +6,7 @@ metadata:
   labels:
     app: travelbee-api
 spec:
-  replicas: 3
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -40,13 +40,23 @@ spec:
             secretKeyRef:
               name: travelbee-secrets
               key: MAPS_API_KEY
+        - name: MONGO_URI
+          valueFrom:
+            secretKeyRef:
+              name: travelbee-secrets
+              key: MONGO_URI
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: travelbee-secrets
+              key: REDIS_URL
         resources:
           limits:
-            cpu: "500m"
-            memory: "512Mi"
-          requests:
-            cpu: "250m"
+            cpu: "200m"
             memory: "256Mi"
+          requests:
+            cpu: "50m"
+            memory: "128Mi"
         startupProbe:
           httpGet:
             path: /api/health/startup

@@ -8,5 +8,3 @@ data:
   PORT: "5000"
   REALTIME_PORT: "5001"
   API_URL: "http://travelbee-api-svc:5000"
-  MONGO_URI: "mongodb://travelbee-mongodb-svc:27017/travelbee"
-  REDIS_URL: "redis://travelbee-redis-svc:6379"

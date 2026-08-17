@@ -56,6 +56,8 @@ export default function App() {
   
   // Socket.IO Ref
   const socketRef = useRef(null);
+  // Leaflet Map Ref
+  const mapRef = useRef(null);
 
   // Fetch foundational info when logged in
   useEffect(() => {
@@ -111,6 +113,125 @@ export default function App() {
     }
     return () => clearInterval(interval);
   }, [token, user]);
+
+  // Dynamic Leaflet Map Loader and Marker Renderer
+  useEffect(() => {
+    if (activeTab === 'map' && user?.location) {
+      const initMap = () => {
+        if (mapRef.current) {
+          try {
+            mapRef.current.remove();
+          } catch (e) {
+            console.error('Error removing map:', e);
+          }
+          mapRef.current = null;
+        }
+
+        const L = window.L;
+        if (!L) return;
+
+        const userLat = user.location.lat;
+        const userLng = user.location.lng;
+
+        // Instantiate Leaflet Map instance targeted at map-element div
+        const map = L.map('map-element', {
+          zoomControl: false // Disable default top-left control to place on bottom-right like Google Maps
+        }).setView([userLat, userLng], 14);
+
+        // Add Light CartoDB Voyager Tile Layer resembling Google Maps layout
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          maxZoom: 20,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(map);
+
+        // Mount Zoom Control floating on the bottom right
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // Pulse User Location Dot (Blue glowing marker like Google Maps)
+        const userIcon = L.divIcon({
+          className: 'custom-user-marker',
+          html: '<div class="user-pulse-dot"></div>',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        });
+        L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup('<b>Your Current Location</b>');
+
+        // Draw Discovery Spot markers with Category Color Codes
+        places.forEach(p => {
+          const markerColor = p.category.toLowerCase().includes('hist') 
+            ? '#2563eb' // Blue for Historical
+            : p.category.toLowerCase().includes('hidd') 
+              ? '#059669' // Green for Hidden Spot
+              : '#d97706'; // Orange/Gold for Community Spot
+
+          const spotIcon = L.divIcon({
+            className: 'custom-spot-marker',
+            html: `<div style="background-color: ${markerColor}; width: 22px; height: 22px; border-radius: 50% 50% 50% 0; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 10px; transform: rotate(-45deg);"><div style="transform: rotate(45deg);">📍</div></div>`,
+            iconSize: [22, 22],
+            iconAnchor: [11, 22] // Pin tip anchor point
+          });
+
+          L.marker([p.location.lat, p.location.lng], { icon: spotIcon })
+            .addTo(map)
+            .bindPopup(`<b>📍 Spot: ${p.name}</b><br/>Category: <b>${p.category}</b><br/>Rating: ⭐ ${p.rating}<br/><p style="margin:4px 0 0 0;font-size:11px;color:#aaa;">${p.description}</p>`);
+        });
+
+        // Draw Nearby Travelers with radial fuzzy privacy coordinates mapping
+        nearbyTravelers.forEach(t => {
+          if (t.distance === 9999 || !t.distance) return;
+
+          // Stable angular offsets
+          const charSum = t.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+          const angle = (charSum % 360) * (Math.PI / 180);
+          
+          const dAngle = t.distance / 6371; // Fuzz coordinates distance bounds
+          const fuzzedLat = userLat + (dAngle * Math.sin(angle) * (180 / Math.PI));
+          const fuzzedLng = userLng + ((dAngle * Math.cos(angle) / Math.cos(userLat * Math.PI / 180)) * (180 / Math.PI));
+
+          const travelerIcon = L.divIcon({
+            className: 'custom-traveler-marker',
+            html: `<div style="background-color: #d97706; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #d97706; display: flex; align-items: center; justify-content: center; color: black; font-weight: bold; font-size: 11px;">👤</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          });
+
+          L.marker([fuzzedLat, fuzzedLng], { icon: travelerIcon })
+            .addTo(map)
+            .bindPopup(`<b>👤 Traveler Match: ${t.name}</b><br/>Distance: <b>${t.distanceStr}</b><br/>Interests: ${t.interests.join(', ')}`);
+        });
+
+        mapRef.current = map;
+      };
+
+      if (!window.L) {
+        // Load styles
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+
+        // Load leaflet scripts
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = initMap;
+        document.body.appendChild(script);
+      } else {
+        setTimeout(initMap, 50); // delay execution to ensure React DOM mounting is complete
+      }
+    }
+
+    return () => {
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (e) {
+          console.error('Error removing map:', e);
+        }
+        mapRef.current = null;
+      }
+    };
+  }, [activeTab, user?.location, places, nearbyTravelers]);
+
 
   const fetchPlaces = async () => {
     try {
@@ -778,218 +899,159 @@ export default function App() {
         {/* TAB 1: DISCOVERY MAP    */}
         {/* ======================= */}
         {activeTab === 'map' && (
-          <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-            <div style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 'bold' }}>Interactive Vector Map</h3>
-                  <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--primary)' }}></span>
-                      Historical
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }}></span>
-                      Hidden Spot
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--color-info)' }}></span>
-                      Community
-                    </span>
+          <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative', width: '100%' }}>
+            {/* Real Map Canvas - Fills 100% of the viewport container */}
+            <div id="map-element" style={{ width: '100%', height: '100%', zIndex: 1 }}></div>
+
+            {/* Google-Maps-style Floating Overlay Panel */}
+            <div style={{
+              position: 'absolute',
+              top: '1rem',
+              left: '1rem',
+              bottom: '1rem',
+              width: '380px',
+              backgroundColor: 'rgba(20, 20, 25, 0.9)',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}>
+              {/* Google-style search input */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                padding: '0.65rem 1rem', 
+                margin: '1rem 1rem 0.5rem 1rem', 
+                background: 'var(--bg-tertiary)', 
+                border: '1px solid var(--border-color)', 
+                borderRadius: '8px', 
+                gap: '0.75rem' 
+              }}>
+                <Search size={18} style={{ color: 'var(--text-muted)' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search nearby places or categories..." 
+                  style={{ 
+                    flex: 1, 
+                    background: 'none', 
+                    border: 'none', 
+                    outline: 'none', 
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem' 
+                  }}
+                />
+              </div>
+
+              {/* Location detection banner trigger */}
+              <div style={{ padding: '0.5rem 1rem 1rem 1rem', borderBottom: '1px solid var(--border-color)' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  style={{ width: '100%', background: '#eab308', color: '#000', justifyContent: 'center' }}
+                  onClick={detectLiveLocation}
+                >
+                  <MapPin size={16} />
+                  Detect Live Location
+                </button>
+              </div>
+
+              {/* Scrollable details wrapper */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                
+                {/* Nearby Suggestions Section */}
+                <div>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Nearby Suggestions
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {places.map(p => (
+                      <div 
+                        key={p.id} 
+                        style={{ 
+                          background: 'var(--bg-tertiary)', 
+                          borderRadius: '8px', 
+                          border: '1px solid var(--border-color)', 
+                          overflow: 'hidden',
+                          cursor: 'pointer',
+                          transition: 'transform 0.2s, border-color 0.2s'
+                        }}
+                        onClick={() => alert(`📍 Spot: ${p.name}\nCategory: ${p.category}\nRating: ⭐ ${p.rating}\nDescription: ${p.description}`)}
+                        className="place-suggestion-card"
+                      >
+                        {/* Image Header */}
+                        <div style={{ height: '120px', background: `url(${p.photos?.[0] || 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800'}) center/cover` }}></div>
+                        <div style={{ padding: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{p.name}</span>
+                            <span style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>
+                              ⭐ {p.rating || 'N/A'}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                            {p.category} {p.distance !== undefined ? `• ${p.distance} km away` : ''}
+                          </p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {p.description}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Simulated Canvas Map Container */}
-                <div className="vector-map-container" style={{ flex: 1 }}>
-                  {/* Grid Lines Overlay */}
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    backgroundImage: 'radial-gradient(circle, #222 1px, transparent 1px)',
-                    backgroundSize: '30px 30px', opacity: 0.3
-                  }}></div>
-
-                  {/* Stylized Vector Map Background (City streets, parks, and winding river) */}
-                  <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} opacity="0.25">
-                    {/* Winding River */}
-                    <path d="M -100,320 C 150,220 250,480 600,420 T 1200,350" fill="none" stroke="#2563eb" strokeWidth="42" strokeLinecap="round" />
-                    <path d="M -100,320 C 150,220 250,480 600,420 T 1200,350" fill="none" stroke="#3b82f6" strokeWidth="36" strokeLinecap="round" />
-                    
-                    {/* Green Parks */}
-                    <rect x="60" y="80" width="220" height="150" rx="12" fill="#065f46" opacity="0.4" />
-                    <rect x="420" y="100" width="180" height="220" rx="15" fill="#065f46" opacity="0.4" />
-                    
-                    {/* Golden Highways & Intersecting Streets */}
-                    <path d="M -50,150 L 1100,600" fill="none" stroke="#1f2937" strokeWidth="10" />
-                    <path d="M -50,150 L 1100,600" fill="none" stroke="#d97706" strokeWidth="2" />
-                    
-                    <path d="M 320,-50 L 320,950" fill="none" stroke="#1f2937" strokeWidth="10" />
-                    <path d="M 320,-50 L 320,950" fill="none" stroke="#d97706" strokeWidth="2" />
-
-                    <path d="M -50,450 C 250,450 450,150 900,150" fill="none" stroke="#374151" strokeWidth="5" strokeDasharray="5,5" />
-                    
-                    {/* City center roundabout */}
-                    <circle cx="320" cy="300" r="30" fill="#111" stroke="#4b5563" strokeWidth="4" />
-                    <circle cx="320" cy="300" r="12" fill="#d97706" />
-                  </svg>
-
-                  {/* Draw Current User location if opt-in */}
-                  {user.location && (
-                    <div 
-                      className="user-dot"
-                      style={{
-                        left: '50%',
-                        top: '50%'
-                      }}
-                      title="You are here"
-                    />
-                  )}
-
-                  {/* Places Dots */}
-                  {places.map((p, index) => {
-                    const latOffset = (p.location.lat - (user.location?.lat || 12.9716)) * 30000;
-                    const lngOffset = (p.location.lng - (user.location?.lng || 77.5946)) * 30000;
-                    const categoryClass = p.category.toLowerCase().includes('hist') 
-                      ? 'historical' 
-                      : p.category.toLowerCase().includes('hidd') 
-                        ? 'hidden' 
-                        : 'community';
-
-                    return (
-                      <div 
-                        key={p.id}
-                        className={`place-dot ${categoryClass}`}
-                        style={{
-                          left: `calc(50% + ${lngOffset}px)`,
-                          top: `calc(50% - ${latOffset}px)`
-                        }}
-                        onClick={() => {
-                          alert(`📍 Place: ${p.name}\nCategory: ${p.category}\nRating: ⭐ ${p.rating}\nDescription: ${p.description}`);
-                        }}
-                        title={p.name}
-                      >
-                        <MapPin size={10} style={{ color: '#000' }} />
-                      </div>
-                    );
-                  })}
-
-                  {/* Nearby Travelers Dots (Fuzzed layout for Privacy compliance) */}
-                  {nearbyTravelers.map((t) => {
-                    if (t.distance === 9999 || !t.distance) return null;
-                    
-                    // Deterministic fuzzed placement angle based on traveler ID
-                    const charSum = t.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-                    const angle = (charSum % 360) * (Math.PI / 180);
-                    
-                    const distPixels = t.distance * 35; // 35 pixels per km for visual visibility
-                    const xOffset = distPixels * Math.cos(angle);
-                    const yOffset = distPixels * Math.sin(angle);
-
-                    return (
-                      <div 
-                        key={t.id}
-                        className="user-dot"
-                        style={{
-                          left: `calc(50% + ${xOffset}px)`,
-                          top: `calc(50% - ${yOffset}px)`,
-                          backgroundColor: '#f59e0b',
-                          boxShadow: '0 0 10px #f59e0b',
-                          width: '14px',
-                          height: '14px',
-                          border: '2px solid #fff'
-                        }}
-                        onClick={() => {
-                          alert(`👤 Nearby Traveler: ${t.name}\nDistance: ${t.distanceStr}\nInterests: ${t.interests.join(', ')}`);
-                        }}
-                        title={`${t.name} (${t.distanceStr})`}
+                {/* Submit Spot Section */}
+                <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Submit a Spot
+                  </h4>
+                  <form onSubmit={handleSubmitPlace} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div className="input-group">
+                      <input 
+                        type="text" 
+                        className="input-field" 
+                        style={{ fontSize: '0.8rem', padding: '0.5rem' }}
+                        placeholder="Spot Name (e.g. Whispering Caves)"
+                        value={newPlaceName}
+                        onChange={e => setNewPlaceName(e.target.value)}
+                        required
                       />
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Sidebar Details / Form */}
-            <div style={{ width: '340px', borderLeft: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', padding: '1.5rem', overflowY: 'auto' }}>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                style={{ width: '100%', marginBottom: '1.5rem', background: '#eab308', color: '#000', justifyContent: 'center' }}
-                onClick={detectLiveLocation}
-              >
-                <MapPin size={16} />
-                Detect Live Location
-              </button>
-
-              <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-                <MapPin size={18} className="text-primary" />
-                Submit Discovery
-              </h3>
-
-              <form onSubmit={handleSubmitPlace} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div className="input-group">
-                  <label className="input-label">Spot Name</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    placeholder="e.g. Whispering Caves"
-                    value={newPlaceName}
-                    onChange={e => setNewPlaceName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="input-group">
-                  <label className="input-label">Category</label>
-                  <select 
-                    className="input-field"
-                    value={newPlaceCat}
-                    onChange={e => setNewPlaceCat(e.target.value)}
-                  >
-                    <option value="Hidden Spot">Hidden Spot (Traveler Secret)</option>
-                    <option value="Historical">Historical Site</option>
-                    <option value="Community Spot">Community Hangout</option>
-                  </select>
-                </div>
-
-                <div className="input-group">
-                  <label className="input-label">Description & Tips</label>
-                  <textarea 
-                    className="input-field" 
-                    style={{ height: '100px', resize: 'none' }}
-                    placeholder="Explain how to get here or historical details..."
-                    value={newPlaceDesc}
-                    onChange={e => setNewPlaceDesc(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                  <Upload size={16} />
-                  Submit Place
-                </button>
-              </form>
-
-              <div style={{ marginTop: '2rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-                <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: 600 }}>Nearby Discovery Spots</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {places.map(p => (
-                    <div 
-                      key={p.id} 
-                      style={{ background: 'var(--bg-tertiary)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer' }}
-                      onClick={() => alert(`Name: ${p.name}\n${p.description}`)}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{p.name}</span>
-                        <span style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>
-                          ⭐ {p.rating || 'N/A'}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                        {p.category} {p.distance !== undefined ? `• ${p.distance} km away` : ''}
-                      </p>
                     </div>
-                  ))}
+
+                    <div className="input-group">
+                      <select 
+                        className="input-field"
+                        style={{ fontSize: '0.8rem', padding: '0.5rem' }}
+                        value={newPlaceCat}
+                        onChange={e => setNewPlaceCat(e.target.value)}
+                      >
+                        <option value="Hidden Spot">Hidden Spot</option>
+                        <option value="Historical">Historical Site</option>
+                        <option value="Community Spot">Community Hangout</option>
+                      </select>
+                    </div>
+
+                    <div className="input-group">
+                      <textarea 
+                        className="input-field" 
+                        style={{ height: '60px', resize: 'none', fontSize: '0.8rem', padding: '0.5rem' }}
+                        placeholder="Description & tip details..."
+                        value={newPlaceDesc}
+                        onChange={e => setNewPlaceDesc(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%', fontSize: '0.8rem', padding: '0.5rem', justifyContent: 'center' }}>
+                      <Upload size={14} />
+                      Submit Place
+                    </button>
+                  </form>
                 </div>
+
               </div>
             </div>
           </div>

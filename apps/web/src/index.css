@@ -552,3 +552,60 @@ body {
     opacity: 1;
   }
 }
+
+/* Google Maps and Leaflet UI overrides */
+.user-pulse-dot {
+  background: #3b82f6;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+  animation: pulse-animation 2s infinite;
+}
+
+@keyframes pulse-animation {
+  0% {
+    box-shadow: 0 0 0 0px rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0px rgba(59, 130, 246, 0);
+  }
+}
+
+/* Custom leaflet popup overrides for premium look */
+.leaflet-popup-content-wrapper {
+  background: rgba(20, 20, 25, 0.95) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  backdrop-filter: blur(8px) !important;
+  border-radius: 8px !important;
+  font-family: var(--font-sans) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(20, 20, 25, 0.95) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Float active zoom control to not overlap panels */
+.leaflet-control-zoom {
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.leaflet-control-zoom-in, .leaflet-control-zoom-out {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.leaflet-control-zoom-in:hover, .leaflet-control-zoom-out:hover {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--primary) !important;
+}
+

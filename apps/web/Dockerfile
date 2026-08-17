@@ -8,7 +8,7 @@ RUN npm ci --workspace=apps/web
 COPY . .
 RUN npm run build --workspace=apps/web
 
-FROM nginx:alpine
+FROM nginxinc/nginx-unprivileged:alpine
 COPY --from=build /usr/src/app/apps/web/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

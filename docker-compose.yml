@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: travelbee-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - travelbee-network
+
+  redis:
+    image: redis:7.0-alpine
+    container_name: travelbee-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - travelbee-network
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: travelbee-api
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/travelbee
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=production_secret_key_change_me
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - travelbee-network
+
+  realtime:
+    build:
+      context: .
+      dockerfile: apps/realtime/Dockerfile
+    container_name: travelbee-realtime
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=production_secret_key_change_me
+    depends_on:
+      - redis
+    networks:
+      - travelbee-network
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: travelbee-worker
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/travelbee
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - travelbee-network
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: travelbee-web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+      - realtime
+    networks:
+      - travelbee-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  travelbee-network:
+    driver: bridge

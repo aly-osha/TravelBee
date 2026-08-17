@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: travelbee-prod
+  labels:
+    name: travelbee-prod
+    security: high

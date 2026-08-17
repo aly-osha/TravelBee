@@ -1,0 +1,59 @@
+name: Deploy to Production Kubernetes Cluster
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # Simulated Docker Build and Scan phase
+    - name: Build Web Frontend image
+      run: docker build -t registry.travelbee.com/web:${{ github.sha }} -f apps/web/Dockerfile .
+
+    - name: Build API Backend image
+      run: docker build -t registry.travelbee.com/api:${{ github.sha }} -f apps/api/Dockerfile .
+
+    - name: Scan Backend Container image for vulnerabilities
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'registry.travelbee.com/api:${{ github.sha }}'
+        format: 'table'
+        exit-code: '0' # Don't break build for demo, alert only
+        severity: 'CRITICAL,HIGH'
+
+    # Kubernetes Deploy phase using manifests
+    - name: Set Kubernetes Context
+      uses: azure/k8s-set-context@v3
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+    - name: Deploy Kubernetes Manifests
+      uses: azure/k8s-deploy@v4
+      with:
+        namespace: travelbee-prod
+        manifests: |
+          infrastructure/kubernetes/namespace.yaml
+          infrastructure/kubernetes/configmap.yaml
+          infrastructure/kubernetes/secrets.yaml
+          infrastructure/kubernetes/pvc.yaml
+          infrastructure/kubernetes/api-deployment.yaml
+          infrastructure/kubernetes/frontend-deployment.yaml
+          infrastructure/kubernetes/realtime-deployment.yaml
+          infrastructure/kubernetes/worker-deployment.yaml
+          infrastructure/kubernetes/services.yaml
+          infrastructure/kubernetes/ingress.yaml
+          infrastructure/kubernetes/hpa.yaml
+          infrastructure/kubernetes/network-policy.yaml
+          infrastructure/kubernetes/rbac.yaml
+        images: |
+          registry.travelbee.com/web:${{ github.sha }}
+          registry.travelbee.com/api:${{ github.sha }}

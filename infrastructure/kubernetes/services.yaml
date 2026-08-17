@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: travelbee-web-svc
+  namespace: travelbee-prod
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: travelbee-web
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: travelbee-api-svc
+  namespace: travelbee-prod
+spec:
+  ports:
+  - port: 5000
+    targetPort: 5000
+  selector:
+    app: travelbee-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: travelbee-realtime-svc
+  namespace: travelbee-prod
+spec:
+  ports:
+  - port: 5001
+    targetPort: 5001
+  selector:
+    app: travelbee-realtime

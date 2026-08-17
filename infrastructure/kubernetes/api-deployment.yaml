@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: travelbee-api
+  namespace: travelbee-prod
+  labels:
+    app: travelbee-api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: travelbee-api
+  template:
+    metadata:
+      labels:
+        app: travelbee-api
+    spec:
+      containers:
+      - name: api
+        image: travelbee-api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5000
+        envFrom:
+        - configMapRef:
+            name: travelbee-config
+        env:
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: travelbee-secrets
+              key: JWT_SECRET
+        - name: MAPS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: travelbee-secrets
+              key: MAPS_API_KEY
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        startupProbe:
+          httpGet:
+            path: /api/health/startup
+            port: 5000
+          failureThreshold: 30
+          periodSeconds: 2
+        readinessProbe:
+          httpGet:
+            path: /api/health/ready
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /api/health/live
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10

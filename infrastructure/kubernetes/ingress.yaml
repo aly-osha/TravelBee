@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: travelbee-ingress
+  namespace: travelbee-prod
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/websocket-services: "travelbee-realtime-svc"
+    nginx.ingress.kubernetes.io/proxy-body-size: "5m"
+spec:
+  tls:
+  - hosts:
+    - travelbee.com
+    secretName: travelbee-tls-secret
+  rules:
+  - host: travelbee.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: travelbee-web-svc
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: travelbee-api-svc
+            port:
+              number: 5000
+      - path: /socket.io
+        pathType: Prefix
+        backend:
+          service:
+            name: travelbee-realtime-svc
+            port:
+              number: 5001

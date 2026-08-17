@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: travelbee-worker
+  namespace: travelbee-prod
+  labels:
+    app: travelbee-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: travelbee-worker
+  template:
+    metadata:
+      labels:
+        app: travelbee-worker
+    spec:
+      containers:
+      - name: worker
+        image: travelbee-worker:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: travelbee-config
+        resources:
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"

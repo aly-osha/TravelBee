@@ -1,0 +1,10 @@
+{
+  "name": "travel-bee-worker",
+  "version": "2.0.0",
+  "private": true,
+  "main": "src/worker.js",
+  "scripts": {
+    "start": "node src/worker.js",
+    "dev": "node src/worker.js"
+  }
+}

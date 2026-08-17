@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-isolation-policy
+  namespace: travelbee-prod
+spec:
+  podSelector:
+    matchLabels:
+      role: database # targets mongodb / redis pods
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: travelbee-api
+    - podSelector:
+        matchLabels:
+          app: travelbee-realtime
+    - podSelector:
+        matchLabels:
+          app: travelbee-worker
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-network-policy
+  namespace: travelbee-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: travelbee-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: travelbee-web
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx

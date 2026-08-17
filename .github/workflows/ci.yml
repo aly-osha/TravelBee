@@ -27,8 +27,5 @@ jobs:
     - name: Install dependencies
       run: npm run install:all
 
-    - name: Start API and Run Security Test Suite
-      run: |
-        npm run dev:api &
-        sleep 5
-        npm run test:security
+    - name: Run Security Test Suite
+      run: npm run test:security

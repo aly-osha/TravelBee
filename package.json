@@ -6,23 +6,17 @@
     "apps/*"
   ],
   "scripts": {
-    "start": "npm run start:all",
-    "start:api": "npm run start --workspace=apps/api",
-    "start:realtime": "npm run start --workspace=apps/realtime",
-    "start:worker": "npm run start --workspace=apps/worker",
+    "start": "node scripts/start.js",
+    "start:api": "node apps/api/src/server.js",
+    "start:realtime": "node apps/realtime/src/server.js",
+    "start:worker": "node apps/worker/src/worker.js",
+    "start:all": "node scripts/start.js",
     "install:all": "npm install",
-    "dev:api": "npm run dev --workspace=apps/api",
-    "dev:realtime": "npm run dev --workspace=apps/realtime",
-    "dev:worker": "npm run dev --workspace=apps/worker",
+    "dev": "node scripts/start.js",
+    "dev:api": "node apps/api/src/server.js",
+    "dev:realtime": "node apps/realtime/src/server.js",
+    "dev:worker": "node apps/worker/src/worker.js",
     "dev:web": "npm run dev --workspace=apps/web",
-    "dev": "npm run start:all",
-    "start:all": "concurrently \"npm run dev:api\" \"npm run dev:realtime\" \"npm run dev:worker\" \"npm run dev:web\"",
     "test:security": "node tests/security/run-attack-tests.js"
-  },
-  "dependencies": {
-    "concurrently": "^8.2.2"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
   }
 }

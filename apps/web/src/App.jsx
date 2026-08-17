@@ -775,8 +775,8 @@ export default function App() {
         </header>
 
         {/* ======================= */}
-        /* TAB 1: DISCOVERY MAP    */
-        /* ======================= */}
+        {/* TAB 1: DISCOVERY MAP    */}
+        {/* ======================= */}
         {activeTab === 'map' && (
           <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
             <div style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>

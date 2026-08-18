@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { 
   Map, Users, MessageSquare, ShieldAlert, Zap, LogOut, 
   MapPin, Star, Send, Shield, AlertTriangle, CheckCircle, 
-  Trash2, UserCheck, AlertOctagon, UserPlus, Heart, Info, RefreshCw, Upload
+  Trash2, UserCheck, AlertOctagon, UserPlus, Heart, Info, RefreshCw, Upload, Search
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';

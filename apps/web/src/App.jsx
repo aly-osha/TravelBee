@@ -6,8 +6,8 @@ import {
   Trash2, UserCheck, AlertOctagon, UserPlus, Heart, Info, RefreshCw, Upload
 } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000';
-const SOCKET_URL = 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001';
 
 export default function App() {
   // Session States

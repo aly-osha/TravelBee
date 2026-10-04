@@ -3,7 +3,15 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 const PORT = process.env.PORT || 5001;
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secure_travelbee_jwt_secret_key_2026';
+// No fallback by design: a baked-in default would let anyone who reads the repo
+// mint valid tokens. Startup must fail loudly instead of signing with a known key.
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error(
+    'JWT_SECRET is not set. Provide it via the environment or your platform secret store.'
+  );
+}
 const API_URL = process.env.API_URL || 'http://localhost:5000';
 
 const server = http.createServer();

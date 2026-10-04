@@ -5,7 +5,15 @@ const jwt = require('jsonwebtoken');
 const store = require('../services/store');
 const rateLimit = require('express-rate-limit');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secure_travelbee_jwt_secret_key_2026';
+// No fallback by design: a baked-in default would let anyone who reads the repo
+// mint valid tokens. Startup must fail loudly instead of signing with a known key.
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error(
+    'JWT_SECRET is not set. Provide it via the environment or your platform secret store.'
+  );
+}
 
 // Dedicated login rate limiter: 5 attempts per 1 minute
 const loginLimiter = rateLimit({

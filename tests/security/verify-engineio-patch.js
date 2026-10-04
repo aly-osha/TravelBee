@@ -11,9 +11,11 @@ const { io } = require('socket.io-client');
 const jwt = require('jsonwebtoken');
 
 const URL = process.env.RT_URL || 'http://localhost:5001';
-// apps/realtime/src/server.js rejects unauthenticated handshakes in io.use(),
-// so the test must present a valid token signed with the same dev secret.
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secure_travelbee_jwt_secret_key_2026';
+// Test-only default, used ONLY when the harness starts the server itself.
+// If you started the realtime server separately, export JWT_SECRET for BOTH the
+// server and this test — they must match, or signature verification fails.
+const JWT_SECRET =
+  process.env.JWT_SECRET || 'test-only-secret-not-used-in-any-deployed-environment';
 
 // engine.io does not export ./package.json, so read the resolved version off disk.
 const lock = require('../../package-lock.json');
@@ -85,7 +87,18 @@ socket.on('connect', () => {
 });
 
 socket.on('connect_error', (err) => {
-  finish(false, `connection failed -> ${err.message}`);
+  // Distinguish an auth mismatch from a real protocol/transport failure: a server
+  // started with a different JWT_SECRET than this test rejects the handshake here.
+  const authIssue = /auth/i.test(err.message);
+  console.log(`  connect_error: ${err.message}`);
+  if (authIssue) {
+    console.log(
+      '  hint: the realtime server is running with a different JWT_SECRET than this\n' +
+        '        test. Start both with the same value, e.g.\n' +
+        '        JWT_SECRET=<value> npm run start:realtime'
+    );
+  }
+  finish(false, authIssue ? 'JWT secret mismatch between server and test' : `connection failed -> ${err.message}`);
 });
 
 setTimeout(() => finish(false, 'timed out waiting for connection'), 12000);

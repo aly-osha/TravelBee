@@ -12,7 +12,15 @@ async function startApiServer() {
   const serverPath = path.join(__dirname, '../../apps/api/src/server.js');
   
   apiProcess = spawn('node', [serverPath], {
-    env: { ...process.env, PORT: '5000', NODE_ENV: 'test' }
+    // apps/api refuses to start without JWT_SECRET (no baked-in fallback), so
+    // generate an ephemeral one per run rather than inheriting the shell's value.
+    env: {
+      ...process.env,
+      PORT: '5000',
+      NODE_ENV: 'test',
+      JWT_SECRET:
+        process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex'),
+    }
   });
 
   apiProcess.stdout.on('data', (data) => {

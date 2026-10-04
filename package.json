@@ -17,6 +17,9 @@
     "dev:realtime": "node apps/realtime/src/server.js",
     "dev:worker": "node apps/worker/src/worker.js",
     "dev:web": "npm run dev --workspace=apps/web",
-    "test:security": "node tests/security/run-attack-tests.js"
+    "test:security": "node tests/security/run-attack-tests.js",
+    "test:qs-patch": "node tests/security/verify-qs-patch.js",
+    "test:realtime-patch": "node tests/security/verify-engineio-patch.js",
+    "audit:ci": "npm audit --audit-level=high"
   }
 }
